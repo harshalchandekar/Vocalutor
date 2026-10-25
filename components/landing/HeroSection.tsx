@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { ArrowRight, Volume2, ChevronRight } from 'lucide-react';
+import { ArrowRight, Volume2 } from 'lucide-react';
 import { SignUpButton } from '@clerk/nextjs';
 import { SUBJECTS_CONFIG } from './data';
 import Hero3DScene from './Hero3DScene';
