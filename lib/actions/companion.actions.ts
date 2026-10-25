@@ -112,16 +112,21 @@ export const newCompanionPermissions = async() => {
     const {userId, has} = await auth();
     const supabase = createSupabaseClient();
 
-    let limit = 0;
-
+    // Pro users: unlimited
     if(has({plan: 'pro'})){
         return true;
-    } else if(has({feature: "3_companions_limit"})){
+    }
+
+    // Determine tier limit
+    let limit = 3; // Default free tier: 3 companions
+
+    if(has({feature: "3_companions_limit"})){
         limit = 3;
     } else if(has({feature: "10_companions_limit"})){
         limit = 10;
     }
 
+    // Count user's existing companions
     const {data, error} = await supabase
     .from('companions')
     .select('id', {count: 'exact'})
@@ -129,13 +134,10 @@ export const newCompanionPermissions = async() => {
 
     if(error) throw new Error(error.message);
 
-    const companionCount = data?.length;
+    const companionCount = data?.length || 0;
 
-    if(companionCount >= limit){
-        return false;
-    }else {
-        return true;
-    }
+    // Allow creation if under limit
+    return companionCount < limit;
 }
 export const addBookmark = async (companionId: string, path: string) => {
   const { userId } = await auth();
