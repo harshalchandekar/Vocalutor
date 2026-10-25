@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import InteractiveDotCanvas from '@/components/landing/InteractiveDotCanvas';
 import HeroSection from '@/components/landing/HeroSection';
 import SubjectTicker from '@/components/landing/SubjectTicker';
@@ -9,22 +10,19 @@ import HowItWorksSection from '@/components/landing/HowItWorksSection';
 import PricingSection from '@/components/landing/PricingSection';
 import CtaBanner from '@/components/landing/CtaBanner';
 import Footer from '@/components/landing/Footer';
-import VoiceDemoModal from '@/components/landing/VoiceDemoModal';
 
 export default function VocalutorLandingPage() {
+  const router = useRouter();
   const [activeSubject, setActiveSubject] = useState('maths');
   const [isSpeaking] = useState(false);
-  const [isDemoOpen, setIsDemoOpen] = useState(false);
 
   const handleSelectSubject = (subId: string) => {
     setActiveSubject(subId);
   };
 
-  const handleOpenDemo = (subjectId?: string) => {
-    if (subjectId) {
-      setActiveSubject(subjectId);
-    }
-    setIsDemoOpen(true);
+  const handleOpenDemo = () => {
+    // Navigate to companions library where users can start real voice sessions
+    router.push('/companions');
   };
 
   return (
@@ -64,13 +62,6 @@ export default function VocalutorLandingPage() {
 
       {/* 3. Footer */}
       <Footer />
-
-      {/* 4. Interactive Modals */}
-      <VoiceDemoModal
-        isOpen={isDemoOpen}
-        onClose={() => setIsDemoOpen(false)}
-        initialSubject={activeSubject}
-      />
     </div>
   );
 }
