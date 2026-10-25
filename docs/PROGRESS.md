@@ -141,4 +141,35 @@ Enforced in `lib/actions/companion.actions.ts` via `newCompanionPermissions()`:
 - [x] **Phase 5: Tests, CI & Code Hygiene** (Complete: Vitest unit tests for compute-quota and compute-streak passing 21/21, GitHub Actions CI workflow with 3-job pipeline, vitest.config.ts with alias and PostCSS bypass, and safe .env.example template)
 - [x] **Phase 6: Metadata, SEO & Performance** (Complete: next/font Bricolage Grotesque, dynamic ImageResponse OpenGraph social cards in app/opengraph-image.tsx, app/robots.ts for crawler governance, app/sitemap.ts for route indexing, layout metadata with keywords/OpenGraph/Twitter, and 100% clean production build audit across all 13 routes)
 - [x] **Phase 7: Documentation & Final Report** (Complete: production-ready README.md with badges, tech stack breakdown, and setup steps; docs/HOW_IT_WORKS.md with architecture deep-dives across WebRTC, quota math, Gemini JSON validation, and streak boundary algorithms)
+- [x] **Phase 8: Production Cleanup & Landing Page Integration** (Complete)
+  - **Landing Page Clerk Integration:**
+    - Removed double navbar issue: deleted redundant `LandingNavbar.tsx`, now using single global `NavBar` with conditional nav items
+    - Replaced all fake modals with real Clerk components: `SignUpButton`, `SignInButton`, `UserButton` (modal mode)
+    - All landing CTAs now use real Clerk signup flow instead of fake `AuthModal`
+    - Pricing section CTAs link to real `/subscription` route with Clerk's `<PricingTable />`
+    - Deleted `AuthModal.tsx` and `PlanModal.tsx` (orphaned fake components)
+  - **Fixed Companion Creation Bug:**
+    - Fixed `newCompanionPermissions()` logic in `lib/actions/companion.actions.ts`
+    - Free users now properly allowed 3 companions (was blocking all creation due to `limit = 0`)
+    - Pro users remain unlimited
+  - **Removed Hardcoded Demo:**
+    - Deleted `VoiceDemoModal.tsx` (used fake hardcoded responses via `speechSynthesis`)
+    - Replaced with real navigation to `/companions` library for actual Vapi voice sessions
+    - "Try Voice Demo" / "See How It Works" buttons now link to real experience
+  - **UI Simplification:**
+    - Removed numbered step badges (01. SPEAK, 02. COMPREHEND, 03. RETAIN)
+    - Simplified CTA buttons: removed decorative grid icons, cleaner styling
+    - Reduced visual clutter, improved typography hierarchy (less "AI slop")
+    - Removed animated pulse decorations from UI elements
+  - **Code Quality:**
+    - ✅ ESLint: No warnings or errors (removed unused imports)
+    - ✅ Vitest: 21/21 tests passing (compute-quota, compute-streak)
+    - ✅ Production build: Successful compile in 2.8min, all 13 routes generated
+    - ✅ Bundle size: Homepage 165 kB (minimal, optimal)
+  - **Commits This Session:**
+    - `7a01126`: Remove double navbar, integrate real Clerk auth, fix companion creation permissions
+    - `99520c4`: Remove hardcoded fake voice demo modal
+    - `d0b0ea3`: Simplify hero section UI to reduce visual clutter
+    - `84b1c39`: Remove unused import from HeroSection
+  - **Status:** Ready for GitHub push and production deployment
 
