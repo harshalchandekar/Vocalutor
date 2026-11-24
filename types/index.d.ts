@@ -1,31 +1,3 @@
-// type User = {
-//   name: string;
-//   email: string;
-//   image?: string;
-//   accountId: string;
-// };
-
-enum Subject {
-  maths = "maths",
-  language = "language",
-  science = "science",
-  history = "history",
-  coding = "coding",
-  geography = "geography",
-  economics = "economics",
-  finance = "finance",
-  business = "business",
-}
-
-type Companion = Models.DocumentList<Models.Document> & {
-  $id: string;
-  name: string;
-  subject: Subject;
-  topic: string;
-  duration: number;
-  bookmarked: boolean;
-};
-
 interface CreateCompanion {
   name: string;
   subject: string;
@@ -42,18 +14,6 @@ interface GetAllCompanions {
   topic?: string | string[];
 }
 
-interface BuildClient {
-  key?: string;
-  sessionToken?: string;
-}
-
-interface CreateUser {
-  email: string;
-  name: string;
-  image?: string;
-  accountId: string;
-}
-
 interface SearchParams {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
@@ -64,7 +24,6 @@ interface Avatar {
   height: number;
   className?: string;
 }
-
 
 interface SavedMessage {
   role: "user" | "system" | "assistant";
@@ -80,4 +39,13 @@ interface CompanionComponentProps {
   userImage: string;
   voice: string;
   style: string;
+  initialQuota?: {
+    plan: "free" | "pro";
+    dailySeconds: number;
+    usedSeconds: number;
+    remainingSeconds: number;
+    maxSessionSeconds: number;
+    allowed: boolean;
+    resetsAtFormatted?: string;
+  };
 }

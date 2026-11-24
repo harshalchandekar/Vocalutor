@@ -1,53 +1,70 @@
-'use client'
+"use client";
 
-import { formUrlQuery, removeKeysFromUrlQuery } from "@jsmastery/utils";
-import Image from "next/image";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { Search, X } from "lucide-react";
+import { formUrlQuery, removeKeysFromUrlQuery } from "@/lib/utils";
 
-const SearchInput = () => {
+export const SearchInput: React.FC = () => {
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const query = searchParams.get("topic") || "";
 
-    const pathName = usePathname();
-    const router = useRouter();
-    const searchParams = useSearchParams();
-    const query = searchParams.get('topic') || ''; 
+  const [searchQuery, setSearchQuery] = useState(query);
 
-    const [searchQuery, setSearchQuery] = useState('');
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (searchQuery.trim()) {
+        const newUrl = formUrlQuery({
+          params: searchParams.toString(),
+          key: "topic",
+          value: searchQuery.trim(),
+        });
+        router.push(newUrl, { scroll: false });
+      } else if (searchParams.has("topic")) {
+        const newUrl = removeKeysFromUrlQuery({
+          params: searchParams.toString(),
+          keysToRemove: ["topic"],
+        });
+        router.push(newUrl, { scroll: false });
+      }
+    }, 400);
 
-      useEffect(() => {
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery, router, searchParams, pathname]);
 
-     const delayDebounceFn = setTimeout(() => {
-        if(searchQuery){
-         const newUrl = formUrlQuery({
-        params: searchParams.toString(),
-        key: "topic",
-        value: searchQuery,
-});
-   router.push(newUrl, {scroll: false});
-} else {
+  const handleClear = () => {
+    setSearchQuery("");
     const newUrl = removeKeysFromUrlQuery({
-  params: searchParams.toString(),
-  keysToRemove: ["topic"],
-});
+      params: searchParams.toString(),
+      keysToRemove: ["topic"],
+    });
+    router.push(newUrl, { scroll: false });
+  };
 
-router.push(newUrl, { scroll: false });
-}
-}, 500);
-}, [searchQuery, router, searchParams, pathName]);
-
-    return (
-        <div className="relative border border-black
-        rounded-lg items-center flex gap-2 px-2 py-1 h-fit">
-            <Image src="/icons/search.svg" alt="search" width={15} height={15} />
-            <input 
-            placeholder="Search Companions..."
-            className="outline-none"
-            value={searchQuery}
-            onChange={(e) => {
-                setSearchQuery(e.target.value);
-            }}/>
-        </div>
-    )
-}
+  return (
+    <div className="relative flex items-center w-full sm:w-72 md:w-80 bg-white border border-neutral-200/90 rounded-xl px-3.5 py-2 shadow-2xs focus-within:border-[#FE5933] focus-within:ring-2 focus-within:ring-[#FE5933]/15 transition-all">
+      <Search className="w-4 h-4 text-neutral-400 shrink-0 mr-2.5" />
+      <input
+        type="text"
+        placeholder="Search tutors or topics..."
+        className="w-full text-sm text-[#0F0F10] placeholder:text-neutral-400 bg-transparent outline-none"
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+      />
+      {searchQuery && (
+        <button
+          type="button"
+          onClick={handleClear}
+          aria-label="Clear search"
+          className="text-neutral-400 hover:text-neutral-600 p-0.5 rounded-full transition-colors ml-1"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+      )}
+    </div>
+  );
+};
 
 export default SearchInput;

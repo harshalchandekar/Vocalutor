@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button"
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -25,7 +24,8 @@ import {
 import { subjects } from "@/constants"
 import { Textarea } from "./ui/textarea"
 import { createCompanion } from "@/lib/actions/companion.actions"
-import { redirect } from "next/navigation"
+import { useRouter } from "next/navigation"
+import { useState } from "react"
 
 
 const formSchema = z.object({
@@ -34,13 +34,16 @@ const formSchema = z.object({
   topic: z.string().min(1, {message: 'Topic is required.'}),
   voice: z.string().min(1, {message: 'Voice is required.'}),
   style: z.string().min(1, {message: 'Style is required.'}),
-  duration: z.coerce.number().min(1, {message: 'Duration is required.'}),
+  duration: z.number().min(1, {message: 'Duration is required.'}),
   
 })
 
 
 const CompanionForm = () => {
-    
+  const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
   // 1. Define your form.
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -50,26 +53,39 @@ const CompanionForm = () => {
       topic:'',
       voice:'',
       style:'',
-      duration:15,
+      duration: 30,
     },
   })
 
   // 2. Define a submit handler.
   const onSubmit = async(values: z.infer<typeof formSchema>) => {
-     const companion = await createCompanion(values);
+    try {
+      setIsSubmitting(true);
+      setErrorMessage(null);
+      const companion = await createCompanion(values);
 
-     if(companion){
-      redirect(`/companions/${companion.id}`);
-     }else {
-      console.log('Failed to create companion');
-      redirect('/');
-     }
+      if(companion?.id){
+        router.push(`/companions/${companion.id}`);
+      } else {
+        router.push('/companions');
+      }
+    } catch (err: unknown) {
+      console.error('Failed to create companion:', err);
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to create companion. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
 
     return(
          <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+        {errorMessage && (
+          <div className="p-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg">
+            {errorMessage}
+          </div>
+        )}
         <FormField
           control={form.control}
           name="name"
@@ -196,16 +212,20 @@ const CompanionForm = () => {
               <FormLabel>Estimated session duration in minutes</FormLabel>
               <FormControl>
                 <Input
-                type="number"
-                placeholder="15"
-                 {...field}
-                 className="input" />
+                  type="number"
+                  placeholder="15"
+                  {...field}
+                  onChange={(e) => field.onChange(e.target.value === '' ? 0 : Number(e.target.value))}
+                  className="input"
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full cursor-pointer">Build Your Companion</Button>
+        <Button type="submit" disabled={isSubmitting} className="w-full cursor-pointer">
+          {isSubmitting ? "Building Your Companion..." : "Build Your Companion"}
+        </Button>
       </form>
     </Form>
     )

@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -42,3 +43,20 @@ next-env.d.ts
 
 # Sentry Config File
 .env.sentry-build-plugin
+
+/coverage
+CLEANUP_SUMMARY.md
+FINAL_STATUS.md
+FIXES_COMPLETED.md
+PHASE_8_COMPLETE.md
+PHASE_8_FINAL_REPORT.md
+PHASE_8_SUMMARY.md
+SESSION_SUMMARY.md
+READY_FOR_GITHUB.md
+TEST_REPORT.md
+
+CLAUDE.md
+TRACKER.md
+
+docs/HOW_IT_WORKS.md
+docs/PROGRESS.md
