@@ -15,6 +15,11 @@ export function validateEnvironment(): void {
   // Only run in server environments (Node.js runtime)
   if (typeof window !== "undefined") return;
 
+  // In CI builds or test runners where live production secrets aren't mounted, skip hard abort
+  if (process.env.CI || process.env.SKIP_ENV_VALIDATION) {
+    return;
+  }
+
   const missing: string[] = [];
 
   for (const envVar of requiredServerEnv) {
