@@ -1,17 +1,18 @@
 "use client";
 
 import React from 'react';
-import { ArrowRight, Volume2 } from 'lucide-react';
-import { SignUpButton } from '@clerk/nextjs';
+import { ArrowRight } from 'lucide-react';
+import { SignUpButton, SignedIn, SignedOut } from '@clerk/nextjs';
+import Link from 'next/link';
 import { SUBJECTS_CONFIG } from './data';
 import Hero3DScene from './Hero3DScene';
 
 export const HeroSection: React.FC<{
   activeSubject: string;
   onSelectSubject: (subjectId: string) => void;
-  onOpenDemo: (subjectId?: string) => void;
+  onOpenDemo?: (subjectId?: string) => void;
   isSpeaking: boolean;
-}> = ({ activeSubject, onSelectSubject, onOpenDemo, isSpeaking }) => {
+}> = ({ activeSubject, onSelectSubject, isSpeaking }) => {
   const activeSubjectObj = SUBJECTS_CONFIG.find((s) => s.id === activeSubject) || SUBJECTS_CONFIG[0];
 
   return (
@@ -44,24 +45,35 @@ export const HeroSection: React.FC<{
             </p>
 
             <div className="flex flex-wrap items-center gap-3.5 mb-7 w-full sm:w-auto">
-              <SignUpButton mode="modal">
-                <button
-                  type="button"
+              <SignedOut>
+                <SignUpButton mode="modal">
+                  <button
+                    type="button"
+                    className="flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold text-white bg-[#E03E1A] hover:bg-[#c73413] rounded-xl transition-colors cursor-pointer"
+                  >
+                    <span>Start for Free</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </SignUpButton>
+              </SignedOut>
+
+              <SignedIn>
+                <Link
+                  href="/companions"
                   className="flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold text-white bg-[#E03E1A] hover:bg-[#c73413] rounded-xl transition-colors cursor-pointer"
                 >
-                  <span>Start for Free</span>
+                  <span>Go to Tutor Library</span>
                   <ArrowRight className="w-4 h-4" />
-                </button>
-              </SignUpButton>
+                </Link>
+              </SignedIn>
 
-              <button
-                type="button"
-                onClick={() => onOpenDemo(activeSubject)}
+              <a
+                href="#how-it-works"
                 className="flex items-center justify-center gap-2 px-6 py-3 text-sm font-medium text-neutral-700 bg-white hover:bg-neutral-50 rounded-xl border border-neutral-200 transition-colors cursor-pointer"
               >
-                <Volume2 className="w-4 h-4" />
-                <span>Try Demo</span>
-              </button>
+                <span>How It Works</span>
+                <ArrowRight className="w-4 h-4 text-neutral-400" />
+              </a>
             </div>
 
             <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-neutral-100 text-sm font-mono text-neutral-600 mb-6">

@@ -4,12 +4,10 @@ import { cn, configureAssistant, getSubjectColor } from "@/lib/utils";
 import { vapi } from "@/lib/vapi.sdk";
 import Lottie, { LottieRefCurrentProps } from "lottie-react";
 import Image from "next/image";
-import Link from "next/link";
 import { useEffect, useRef, useState, useCallback } from "react";
 import soundwaves from "@/constants/soundwaves.json";
 import { addToSessionHistory } from "@/lib/actions/companion.actions";
 import { recordVoiceUsage } from "@/lib/actions/voice.actions";
-import { generateSessionRecap } from "@/lib/actions/recap.actions";
 
 enum CallStatus {
     INACTIVE = 'INACTIVE',
@@ -40,12 +38,7 @@ const CompanionComponent = ({
     const [isMuted, setIsMuted] = useState(false);
     const [messages, setMessages] = useState<SavedMessage[]>([]);
     const [endReason, setEndReason] = useState<string | null>(null);
-    // Recap state: null = not generated, string = recap ID, 'error' = failed silently
-    const [recapId, setRecapId] = useState<string | null>(null);
-    const [isGeneratingRecap, setIsGeneratingRecap] = useState(false);
-
-    // Track transcripts for AI session recap
-    const transcriptsRef = useRef<TranscriptItem[]>([]);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     // Guardrail: Session countdown timer
     const maxSessionSecs = initialQuota?.maxSessionSeconds && initialQuota.maxSessionSeconds > 0
@@ -79,37 +72,18 @@ const CompanionComponent = ({
             elapsedSeconds = Math.max(1, Math.round((Date.now() - callStartTimeRef.current) / 1000));
         }
 
-        // Capture transcript snapshot before async operations
-        const transcriptSnapshot = [...transcriptsRef.current];
-
         try {
+            const sessionHistoryRecord = await addToSessionHistory(companionId);
             if (elapsedSeconds > 0) {
                 await recordVoiceUsage({
-                    sessionId: companionId,
+                    sessionId: sessionHistoryRecord?.id,
                     seconds: elapsedSeconds,
                 });
             }
-            await addToSessionHistory(companionId);
         } catch (err) {
             console.error("Error finalizing call usage:", err);
         }
-
-        // Generate AI recap in background (non-blocking — won't affect session save)
-        if (transcriptSnapshot.length >= 4) {
-            setIsGeneratingRecap(true);
-            generateSessionRecap({
-                companionId,
-                subject,
-                topic,
-                transcript: transcriptSnapshot,
-            })
-                .then((recap) => {
-                    if (recap?.id) setRecapId(recap.id);
-                })
-                .catch(() => { /* silently ignore */ })
-                .finally(() => setIsGeneratingRecap(false));
-        }
-    }, [companionId, subject, topic]);
+    }, [companionId]);
 
     // Active session countdown timer
     useEffect(() => {
@@ -148,11 +122,7 @@ const CompanionComponent = ({
 
         const onMessage = (message: Message) => {
             if (message.type === 'transcript' && message.transcriptType === 'final') {
-                const role = message.role === 'assistant' ? 'assistant' : 'user';
                 const text = message.transcript;
-                
-                // Keep transcript store for AI recap
-                transcriptsRef.current.push({ role, text });
 
                 const newMessage = { role: message.role, content: text };
                 setMessages((prev) => [newMessage, ...prev]);
@@ -161,7 +131,21 @@ const CompanionComponent = ({
 
         const onSpeechStart = () => setIsSpeaking(true);
         const onSpeechEnd = () => setIsSpeaking(false);
-        const onError = (error: Error) => console.error('Vapi Error:', error);
+        const onError = (error: unknown) => {
+            console.error('Vapi Error Details:', error);
+            const errObj = error as Record<string, unknown> | null;
+            const nestedErr = errObj?.error as Record<string, unknown> | null;
+            const message = (nestedErr?.message as string) || (errObj?.message as string) || (typeof error === 'string' ? error : null);
+
+            if (message && message.includes("Meeting has ended")) {
+                setErrorMessage("Call ended by voice provider (ejection). This occurs when the Vapi assistant cannot start (e.g. Vapi account has $0 balance or trial credits expired, or provider API keys are missing on the Vapi dashboard).");
+            } else if (message) {
+                setErrorMessage(`Voice service notice: ${message}`);
+            } else {
+                setErrorMessage("Connection was closed by the voice service provider. Please verify your Vapi credits or provider keys in dashboard.vapi.ai.");
+            }
+            setCallStatus(CallStatus.INACTIVE);
+        };
 
         vapi.on('call-start', onCallStart);
         vapi.on('call-end', onCallEnd);
@@ -189,18 +173,26 @@ const CompanionComponent = ({
     const handleCall = async () => {
         if (isQuotaBlocked) return;
 
+        setErrorMessage(null);
         setCallStatus(CallStatus.CONNECTING);
         setSecondsRemaining(maxSessionSecs);
 
+        // SDK v3: clientMessages/serverMessages are single-string unions, NOT arrays.
+        // Passing arrays breaks the assistant initialization and causes "Meeting ended due to ejection".
+        // We only pass variableValues here; transcripts are received by default.
         const assistantOverrides = {
             variableValues: { subject, topic, style },
-            clientMessages: ["transcript"],
-            serverMessages: [],
         };
 
-        // Pass maxSessionSecs to configureAssistant for Vapi-side telephony termination guardrail
-        // @ts-expect-error - assistantOverrides type mismatch with Vapi SDK overload
-        vapi.start(configureAssistant(voice, style, maxSessionSecs), assistantOverrides);
+        try {
+            // variableValues is accepted at runtime by Vapi (transcripts are received by default)
+            await vapi.start(configureAssistant(voice, style, maxSessionSecs), assistantOverrides);
+        } catch (err: unknown) {
+            console.error("Vapi start exception:", err);
+            const errObj = err as Record<string, unknown> | null;
+            setErrorMessage((errObj?.message as string) || "Failed to initiate call. Check voice service credentials.");
+            setCallStatus(CallStatus.INACTIVE);
+        }
     };
 
     const handleDisconnect = () => {
@@ -226,13 +218,16 @@ const CompanionComponent = ({
                         <p className="text-xs text-amber-700 mt-0.5">
                             You have used your daily voice minutes allowance. Your quota resets {initialQuota?.resetsAtFormatted || "soon"}.
                         </p>
+                        <p className="text-[10px] text-amber-600 mt-1 leading-snug">
+                            Your daily allowance is a rolling 24-hour window — it counts back from your earliest spoken minute today, not midnight.
+                        </p>
                     </div>
-                    <Link
+                    <a
                         href="/subscription"
                         className="text-xs font-semibold bg-[#FE5933] text-white px-3.5 py-2 rounded-lg hover:bg-[#e04825] transition shrink-0"
                     >
                         Upgrade to Pro
-                    </Link>
+                    </a>
                 </div>
             )}
 
@@ -243,42 +238,52 @@ const CompanionComponent = ({
                 </div>
             )}
 
-            {/* View Recap button — appears after session finishes */}
+            {/* Voice Provider Notice banner */}
+            {errorMessage && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-amber-900 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                    <div className="flex-1">
+                        <p className="font-semibold text-sm">Voice Service Notice</p>
+                        <p className="text-xs text-amber-700 mt-0.5 leading-relaxed">{errorMessage}</p>
+                    </div>
+                    <button
+                        onClick={() => setErrorMessage(null)}
+                        className="text-xs text-amber-800 hover:underline font-semibold shrink-0 cursor-pointer"
+                        type="button"
+                    >
+                        Dismiss
+                    </button>
+                </div>
+            )}
+
+            {/* Session Complete banner */}
             {callStatus === CallStatus.FINISHED && (
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-xl p-4">
+                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center gap-3">
                     <div className="flex-1">
                         <p className="font-semibold text-sm text-neutral-900">Session Complete 🎉</p>
                         <p className="text-xs text-neutral-500 mt-0.5">
-                            {isGeneratingRecap
-                                ? "Generating your AI recap and quiz..."
-                                : recapId
-                                ? "Your recap is ready — review key learnings and test yourself!"
-                                : transcriptsRef.current.length < 4
-                                ? "Talk more in your next session to unlock AI recaps!"
-                                : "Recap generation failed — try again next session."}
+                            Great job! Your session has been saved to your learning history.
                         </p>
                     </div>
-                    {recapId && !isGeneratingRecap && (
-                        <Link
-                            href={`/sessions/${recapId}`}
-                            className="shrink-0 inline-flex items-center gap-2 bg-[#FE5933] hover:bg-[#e04825] text-white text-xs font-semibold px-4 py-2.5 rounded-lg transition"
-                        >
-                            View Recap &amp; Quiz →
-                        </Link>
-                    )}
-                    {isGeneratingRecap && (
-                        <div className="shrink-0 flex items-center gap-2 text-xs text-neutral-500 bg-white border border-neutral-200 px-4 py-2.5 rounded-lg">
-                            <span className="size-3 rounded-full bg-[#FE5933] animate-pulse" />
-                            Generating...
-                        </div>
-                    )}
+                    <a
+                        href="/my-journey"
+                        className="shrink-0 inline-flex items-center gap-2 bg-[#FE5933] hover:bg-[#e04825] text-white text-xs font-semibold px-4 py-2.5 rounded-lg transition"
+                    >
+                        View My Journey →
+                    </a>
                 </div>
             )}
 
             <section className="flex gap-8 max-sm:flex-col">
                 <div className="companion-section relative">
-                    {/* Live countdown timer indicator */}
-                    <div className="absolute top-3 right-3 bg-neutral-900/80 text-white text-xs px-2.5 py-1 rounded-full font-mono flex items-center gap-1.5 backdrop-blur-xs">
+                    {/* Live countdown timer indicator — counts down the session length cap */}
+                    <div
+                        className="absolute top-3 right-3 bg-neutral-900/80 text-white text-xs px-2.5 py-1 rounded-full font-mono flex items-center gap-1.5 backdrop-blur-xs"
+                        title="Session time limit — counts down the maximum length of this voice session"
+                        aria-label="Session time limit"
+                    >
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-neutral-300 mr-0.5">
+                            Session limit
+                        </span>
                         <span className={`size-2 rounded-full ${callStatus === CallStatus.ACTIVE ? 'bg-emerald-400 animate-pulse' : 'bg-neutral-400'}`} />
                         <span>{formatTime(secondsRemaining)}</span>
                     </div>
@@ -296,13 +301,22 @@ const CompanionComponent = ({
                                 callStatus === CallStatus.CONNECTING && 'opacity-100 animate-pulse'
                             )}
                         >
-                            <Image
-                                src={`/icons/${subject}.svg`}
-                                alt={subject}
-                                width={150}
-                                height={150}
-                                className="max-sm:w-fit"
-                            />
+                            {(() => {
+                                const validSubjects = ["maths", "language", "science", "history", "coding", "economics"];
+                                const rawSubject = subject?.toLowerCase();
+                                const iconSrc = rawSubject && validSubjects.includes(rawSubject)
+                                    ? `/icons/${rawSubject}.svg`
+                                    : "/icons/cap.svg";
+                                return (
+                                    <Image
+                                        src={iconSrc}
+                                        alt={subject || name || "Companion icon"}
+                                        width={150}
+                                        height={150}
+                                        className="max-sm:w-fit"
+                                    />
+                                );
+                            })()}
                         </div>
                         <div
                             className={cn(

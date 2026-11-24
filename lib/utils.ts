@@ -6,8 +6,43 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export const getSubjectColor = (subject: string) => {
-  return subjectsColors[subject as keyof typeof subjectsColors];
+export function formUrlQuery({
+  params,
+  key,
+  value,
+}: {
+  params: string;
+  key: string;
+  value: string | null;
+}): string {
+  const currentParams = new URLSearchParams(params);
+  if (value) {
+    currentParams.set(key, value);
+  } else {
+    currentParams.delete(key);
+  }
+  const queryString = currentParams.toString();
+  return queryString ? `?${queryString}` : "";
+}
+
+export function removeKeysFromUrlQuery({
+  params,
+  keysToRemove,
+}: {
+  params: string;
+  keysToRemove: string[];
+}): string {
+  const currentParams = new URLSearchParams(params);
+  for (const key of keysToRemove) {
+    currentParams.delete(key);
+  }
+  const queryString = currentParams.toString();
+  return queryString ? `?${queryString}` : "";
+}
+
+export const getSubjectColor = (subject?: string) => {
+  if (!subject) return "#E5D0FF";
+  return subjectsColors[subject.toLowerCase() as keyof typeof subjectsColors] || "#E5D0FF";
 };
 
 export const configureAssistant = (
@@ -18,7 +53,7 @@ export const configureAssistant = (
   const voiceId =
     voices[voice as keyof typeof voices][
       style as keyof (typeof voices)[keyof typeof voices]
-    ] || "sarah";
+    ] || "EXAVITQu4vr4xnSDxMaL";
 
   const vapiAssistant: CreateAssistantDTO = {
     name: "Companion",
@@ -28,7 +63,7 @@ export const configureAssistant = (
     maxDurationSeconds: maxDurationSeconds ? Math.max(10, Math.floor(maxDurationSeconds)) : undefined,
     transcriber: {
       provider: "deepgram",
-      model: "nova-3",
+      model: "nova-2",
       language: "en",
     },
     voice: {
@@ -42,7 +77,7 @@ export const configureAssistant = (
     },
     model: {
       provider: "openai",
-      model: "gpt-4",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",

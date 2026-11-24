@@ -102,18 +102,6 @@ export default async function Image() {
               fontWeight: 600,
             }}
           >
-            🧠 AI Recaps & Quizzes
-          </div>
-          <div
-            style={{
-              backgroundColor: "#27272a",
-              color: "#f4f4f5",
-              padding: "10px 20px",
-              borderRadius: "9999px",
-              fontSize: "20px",
-              fontWeight: 600,
-            }}
-          >
             📊 Learning Analytics
           </div>
         </div>

@@ -1,28 +1,35 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@clerk/nextjs';
 import InteractiveDotCanvas from '@/components/landing/InteractiveDotCanvas';
 import HeroSection from '@/components/landing/HeroSection';
 import SubjectTicker from '@/components/landing/SubjectTicker';
 import FeaturesSection from '@/components/landing/FeaturesSection';
 import HowItWorksSection from '@/components/landing/HowItWorksSection';
 import PricingSection from '@/components/landing/PricingSection';
-import CtaBanner from '@/components/landing/CtaBanner';
 import Footer from '@/components/landing/Footer';
 
 export default function VocalutorLandingPage() {
   const router = useRouter();
+  const { userId, isLoaded } = useAuth();
   const [activeSubject, setActiveSubject] = useState('maths');
   const [isSpeaking] = useState(false);
 
+  // Directly redirect logged-in users to Tutors Library (/companions)
+  useEffect(() => {
+    if (isLoaded && userId) {
+      router.replace('/companions');
+    }
+  }, [isLoaded, userId, router]);
+
+  if (isLoaded && userId) {
+    return null;
+  }
+
   const handleSelectSubject = (subId: string) => {
     setActiveSubject(subId);
-  };
-
-  const handleOpenDemo = () => {
-    // Navigate to companions library where users can start real voice sessions
-    router.push('/companions');
   };
 
   return (
@@ -32,32 +39,24 @@ export default function VocalutorLandingPage() {
 
       {/* 2. Main Landing Sections */}
       <div className="flex-1 relative z-10 w-full">
-        {/* Hero Section: Text Left, 3D Dandelion Right */}
+        {/* Hero Section */}
         <HeroSection
           activeSubject={activeSubject}
           onSelectSubject={handleSelectSubject}
-          onOpenDemo={handleOpenDemo}
           isSpeaking={isSpeaking}
         />
 
-        {/* Continuous Subject Ticker & Metrics */}
+        {/* Continuous Subject Ticker */}
         <SubjectTicker activeSubject={activeSubject} onSelectSubject={handleSelectSubject} />
 
-        {/* Section 2: 6 Core Subjects with Disappearing Box Bubble Effect */}
-        <FeaturesSection
-          onOpenDemo={handleOpenDemo}
-          activeSubject={activeSubject}
-          onSelectSubject={handleSelectSubject}
-        />
+        {/* Section 2: 8 Core Subjects & Platform Capabilities */}
+        <FeaturesSection />
 
-        {/* Section 3: Three Steps with Mutually Exclusive Hover Accordion */}
-        <HowItWorksSection onOpenDemo={() => handleOpenDemo()} />
+        {/* Section 3: Three Steps to Learn Out Loud */}
+        <HowItWorksSection />
 
-        {/* Section 4: Simple, Honest Pricing */}
+        {/* Section 4: Real Clerk Pricing & Plans */}
         <PricingSection />
-
-        {/* Section 5: Talk Your Way to Top CTA Banner */}
-        <CtaBanner onOpenDemo={() => handleOpenDemo()} />
       </div>
 
       {/* 3. Footer */}

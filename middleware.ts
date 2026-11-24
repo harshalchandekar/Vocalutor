@@ -1,6 +1,28 @@
-import { clerkMiddleware } from '@clerk/nextjs/server';
+import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
+import { NextResponse } from 'next/server';
 
-export default clerkMiddleware();
+const isPublicRoute = createRouteMatcher([
+  '/',
+  '/sign-in(.*)',
+  '/sign-up(.*)',
+  '/companions',
+  '/subscription',
+]);
+
+export default clerkMiddleware(async (auth, req) => {
+  const { userId } = await auth();
+
+  // Enforce default-deny: automatically protect all routes unless explicitly public
+  if (!isPublicRoute(req)) {
+    await auth.protect();
+  }
+
+  // If a logged-in user visits the landing page (/), immediately redirect to /companions
+  if (userId && req.nextUrl.pathname === '/' && !req.nextUrl.search.includes('clerk')) {
+    const companionsUrl = new URL('/companions', req.url);
+    return NextResponse.redirect(companionsUrl);
+  }
+});
 
 export const config = {
   matcher: [

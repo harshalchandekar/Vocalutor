@@ -26,8 +26,10 @@ export const metadata: Metadata = {
     "interactive education",
     "Vocalutor",
     "Vapi AI",
-    "Gemini Flash",
   ],
+  icons: {
+    icon: "/favicon-vocalutor1.svg"
+  },
   authors: [{ name: "Harshal Chandekar" }],
   openGraph: {
     type: "website",
@@ -54,11 +56,30 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${bricolage.variable} antialiased`}>
-        <ClerkProvider appearance={{variables:{ colorPrimary: '#fe5933'}} }>
-        <NavBar />
-        {children}
+        <ClerkProvider
+          appearance={{
+            variables: {
+              colorPrimary: "#FE5933",
+              colorText: "#0F0F10",
+              borderRadius: "0.75rem",
+              fontFamily: "var(--font-bricolage), sans-serif",
+            },
+            elements: {
+              card: "shadow-xl border border-neutral-200/80 rounded-3xl",
+              socialButtonsBlockButton:
+                "border border-neutral-200 hover:bg-neutral-50 text-neutral-800 font-semibold rounded-xl transition-all shadow-xs py-2.5",
+              formButtonPrimary:
+                "bg-[#0F0F10] hover:bg-[#E03E1A] text-white rounded-xl shadow-xs transition-colors",
+              footerActionLink: "text-[#FE5933] hover:text-[#E03E1A] font-semibold",
+              dividerRow: "!hidden",
+              form: "!hidden",
+            },
+          }}
+        >
+          <NavBar />
+          {children}
         </ClerkProvider>
-        </body>
+      </body>
     </html>
   );
 }

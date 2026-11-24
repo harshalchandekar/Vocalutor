@@ -1,37 +1,31 @@
 import React from "react";
+import Image from "next/image";
+import { cn } from "@/lib/utils";
 
 interface LogoProps {
   className?: string;
-  showWordmark?: boolean;
+  size?: "sm" | "md" | "lg";
 }
 
-export const Logo: React.FC<LogoProps> = ({ className = "", showWordmark = true }) => {
+export const Logo: React.FC<LogoProps> = ({ className = "", size = "md" }) => {
+  const sizeMap = {
+    sm: { width: 120, height: 36, className: "h-8 w-auto" },
+    md: { width: 140, height: 44, className: "h-11 w-auto" },
+    lg: { width: 180, height: 56, className: "h-14 w-auto" },
+  };
+
+  const { width, height, className: heightClass } = sizeMap[size];
+
   return (
-    <div className={`flex items-center gap-2.5 font-bold tracking-tight select-none ${className}`}>
-      {/* Custom designed brand mark: Speech soundwaves meeting learning bookmark */}
-      <svg
-        width="36"
-        height="36"
-        viewBox="0 0 40 40"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        className="shrink-0 transition-transform duration-200 hover:scale-105"
-        aria-hidden="true"
-      >
-        <rect width="40" height="40" rx="10" fill="#18181B" />
-        {/* Modern voice frequency columns evoking an open tutor conversation */}
-        <rect x="9" y="15" width="3.5" height="10" rx="1.75" fill="#FE5933" />
-        <rect x="15" y="10" width="3.5" height="20" rx="1.75" fill="#FE5933" />
-        <rect x="21" y="7" width="3.5" height="26" rx="1.75" fill="#FFFFFF" />
-        <rect x="27" y="13" width="3.5" height="14" rx="1.75" fill="#FE5933" />
-        {/* Subtle accent dot indicating live voice tutor readiness */}
-        <circle cx="33" cy="9" r="2" fill="#22C55E" />
-      </svg>
-      {showWordmark && (
-        <span className="text-xl font-bold tracking-tight text-neutral-900">
-          Vocal<span className="text-[#FE5933]">utor</span>
-        </span>
-      )}
+    <div className={cn("flex items-center select-none", className)}>
+      <Image
+        src="/vocalutor-primary.svg"
+        alt="Vocalutor — Talk to an AI tutor out loud"
+        width={width}
+        height={height}
+        priority
+        className={cn("object-contain transition-transform hover:scale-[1.02]", heightClass)}
+      />
     </div>
   );
 };

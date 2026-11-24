@@ -21,9 +21,12 @@ const CompanionSession = async({params} : CompanionSessionPageProps) => {
     const quota = await getVoiceQuota();
 
     const {name, subject, topic, duration} = companion;
-
-        
-
+    const validSubjects = ["maths", "language", "science", "history", "coding", "economics"];
+    const rawSubject = subject?.toLowerCase();
+    const subjectIcon = rawSubject && validSubjects.includes(rawSubject)
+        ? `/icons/${rawSubject}.svg`
+        : "/icons/cap.svg";
+    const subjectAlt = subject || name || "Subject icon";
 
     return(
         <main>
@@ -31,7 +34,7 @@ const CompanionSession = async({params} : CompanionSessionPageProps) => {
                 <div className="flex itmes-center gap-2">
                     <div className="size-[72px] flex items-center justify-center rounded-lg max-md:hidden" 
                     style={{backgroundColor:getSubjectColor(subject)}}>
-                        <Image src={`/icons/${subject}.svg`} alt={subject} width={35} height={35} />
+                        <Image src={subjectIcon} alt={subjectAlt} width={35} height={35} />
                     </div>
                     <div className="flex flex-col gap-2">
                         <div className="flex items-center gap-2">

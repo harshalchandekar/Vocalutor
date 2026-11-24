@@ -5,6 +5,7 @@ import { z } from "zod";
 import { createSupabaseClient } from "../supabase";
 import { computeQuota, QuotaCalculation } from "../compute-quota";
 import { PLAN_LIMITS, USAGE_GRACE_PERIOD_SECONDS, UserPlan } from "../limits";
+import { isUserProPlan } from "../auth-plan";
 import { revalidatePath } from "next/cache";
 
 // Input schema for usage reporting with upper boundary protection
@@ -26,11 +27,12 @@ export interface VoiceQuotaResponse extends QuotaCalculation {
 }
 
 /**
- * Determines whether the user has a Pro subscription plan via Clerk entitlements.
+ * Determines whether the user has a Pro subscription plan via Clerk entitlements,
+ * plan slugs, session claims, or user metadata.
  */
 export async function getUserPlan(): Promise<UserPlan> {
-  const { has } = await auth();
-  if (has({ plan: "pro" })) {
+  const isPro = await isUserProPlan();
+  if (isPro) {
     return "pro";
   }
   return "free";
@@ -130,11 +132,23 @@ export async function recordVoiceUsage(input: {
   }
 
   const supabase = createSupabaseClient();
-  const { data, error } = await supabase.from("voice_usage").insert({
+  let { data, error } = await supabase.from("voice_usage").insert({
     user_id: userId,
     session_id: sessionId || null,
     seconds,
   });
+
+  // If a foreign key constraint violation occurs on session_id, retry with session_id: null
+  if (error && (error.code === "23503" || error.message?.includes("foreign key constraint"))) {
+    console.warn("FK constraint violation on voice_usage.session_id. Retrying with session_id: null");
+    const retry = await supabase.from("voice_usage").insert({
+      user_id: userId,
+      session_id: null,
+      seconds,
+    });
+    error = retry.error;
+    data = retry.data;
+  }
 
   if (error) {
     console.error("Failed to insert voice_usage record:", error.message);

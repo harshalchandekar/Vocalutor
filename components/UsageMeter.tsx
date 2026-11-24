@@ -49,7 +49,7 @@ export const UsageMeter = () => {
   return (
     <Link
       href="/subscription"
-      title={`${quota.remainingSeconds}s remaining today (${quota.plan.toUpperCase()} plan). Click to manage.`}
+      title={`${quota.remainingSeconds}s remaining today (${quota.plan.toUpperCase()} plan). Your daily allowance is a rolling 24-hour window — it counts back from your earliest spoken minute today, not midnight. Click to manage.`}
       className="hidden md:flex items-center gap-2.5 px-3 py-1 rounded-full border border-neutral-200 bg-white hover:bg-neutral-50 transition-colors shadow-2xs text-xs"
     >
       <div className="flex items-center gap-1.5">

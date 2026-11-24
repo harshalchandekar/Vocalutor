@@ -19,7 +19,7 @@
 
 ### 2. Folder Structure
 - `app/`: Next.js App Router pages and layouts:
-  - `app/page.tsx`: Home page with popular companions, recent sessions list, and CTA banner.
+  - `app/page.tsx`: Home page with landing sections and CTA banner.
   - `app/companions/page.tsx`: Companion library with search and subject filtering.
   - `app/companions/[id]/page.tsx`: Live voice session room.
   - `app/companions/new/page.tsx`: Companion creation builder guarded by plan limits.
@@ -27,14 +27,18 @@
   - `app/subscription/page.tsx`: Clerk `<PricingTable />` subscription management.
   - `app/sign-in/`: Clerk authentication route.
   - `app/layout.tsx`: Root layout with ClerkProvider, font (`Bricolage_Grotesque`), and navbar.
-- `components/`: UI components including Radix primitives in `components/ui/`, `CompanionComponents.tsx` (Vapi session room), `CompanionCard.tsx`, `CompanionForm.tsx`, `CompanionList.tsx`, `Navbar.tsx`, `NavItems.tsx`, `SearchInput.tsx`, `SubjectFilter.tsx`, `CTA.tsx`.
-- `constants/`: Subject listings, subject pastel color map, ElevenLabs voice IDs, and mock session data.
+- `components/`: UI components including Radix primitives in `components/ui/`, `CompanionComponents.tsx` (Vapi session room), `CompanionCard.tsx`, `CompanionForm.tsx`, `CompanionList.tsx`, `Navbar.tsx`, `SearchInput.tsx`, `SubjectFilter.tsx`, `UsageMeter.tsx`.
+- `constants/`: Subject listings, subject pastel color map, ElevenLabs voice IDs.
 - `lib/`:
   - `lib/supabase.ts`: Supabase client factory passing Clerk session JWT tokens.
   - `lib/vapi.sdk.ts`: Client-side singleton instance of `@vapi-ai/web`.
   - `lib/utils.ts`: Utility functions (`cn`, `getSubjectColor`, `configureAssistant`).
-  - `lib/actions/companion.actions.ts`: Server Actions (`createCompanion`, `getAllCompanions`, `getCompanion`, `addToSessionHistory`, `getRecentSessions`, `getUserSessions`, `getUserCompanions`, `newCompanionPermissions`, `addBookmark`, `removeBookmark`, `getBookmarkedCompanions`).
-- `public/`: SVG icons for subjects, mic, bookmarks, and tutorial leftover images in `public/images/` and `public/readme/`.
+  - `lib/actions/companion.actions.ts`: Server Actions (`createCompanion`, `getAllCompanions`, `getCompanion`, `addToSessionHistory`, `getRecentSessions`, `getUserSessions`, `getUserCompanions`, `newCompanionPermissions`, `addBookmark`, `removeBookmark`, `getBookmarkedCompanions`, `getUserBookmarkIds`).
+  - `lib/actions/voice.actions.ts`: `getVoiceQuota`, `recordVoiceUsage`.
+  - `lib/actions/dashboard.actions.ts`: `getDashboardData`, `updateWeeklyGoal`, `syncUserTimezone`.
+  - `lib/auth-plan.ts`: Resilient Pro plan entitlement resolver.
+  - `lib/limits.ts`, `lib/compute-quota.ts`, `lib/compute-streak.ts`: Pure utility functions.
+- `public/`: SVG icons for subjects, mic, bookmarks.
 
 ### 3. How Clerk is Wired to Supabase
 In `lib/supabase.ts`:
@@ -75,40 +79,17 @@ Existing tables in Supabase:
    - `companion_id` (uuid / text, FK referencing `companions.id`)
    - `user_id` (text, Clerk `userId`)
    - `created_at` (timestamp with time zone)
-
-### 5. How a Voice Session Starts and Ends
-Located in `components/CompanionComponents.tsx`:
-- **Start**: User clicks "Start Session" which invokes `handleCall()`. It sets call status to `CONNECTING`, creates the assistant configuration via `configureAssistant(voice, style)` (Deepgram Nova-3 + ElevenLabs + GPT-4 with a specialized tutor prompt), and calls `vapi.start(...)`.
-- **Active Call Events**: Vapi emits `call-start` (switches status to `ACTIVE`), `speech-start` and `speech-end` (triggers Lottie soundwaves), and `message` (captures transcript messages).
-- **End**: User clicks "End Session" (`handleDisconnect()` calls `vapi.stop()`) or the remote party ends the call. When `call-end` fires, `onCallEnd()` sets status to `FINISHED` and invokes Server Action `addToSessionHistory(companionId)`.
-
-### 6. Where Plan Limits are Enforced
-Enforced in `lib/actions/companion.actions.ts` via `newCompanionPermissions()`:
-- Checks Clerk user entitlements using `auth()`:
-  - `has({ plan: 'pro' })`: unlimited companions.
-  - `has({ feature: '10_companions_limit' })`: capped at 10 companions.
-  - `has({ feature: '3_companions_limit' })`: capped at 3 companions.
-  - Default / Free: fallback to 0 or 3 depending on feature assignment.
-- Used in `app/companions/new/page.tsx` before rendering `CompanionForm`. If cap is reached, renders an upgrade banner pointing to `/subscription`.
-
-### 7. How Session History is Saved
-- When a call ends in `components/CompanionComponents.tsx`, `addToSessionHistory(companionId)` is called.
-- It inserts `{ companion_id, user_id }` into `session_history`.
-- Note: It previously did not record call duration (seconds) or transcript history.
-
-### 8. Tutorial Leftovers Identified
-- **Branding**: Title "Converso" across `README.md`, `CLAUDE.md`, `app/layout.tsx`, and navbar logo alt texts.
-- **Assets**:
-  - `public/images/logo.svg` (1.04 MB heavy tutorial logo).
-  - `public/readme/jsmpro.jpg`, `videokit.jpg`, `hero.png`, `thumbnail.png` (JavaScript Mastery tutorial promotional assets).
-- **Sample Data**:
-  - `constants/index.ts` contains hardcoded `recentSessions` array with mock data ("Neura the Brainy Explorer", "Countsy the Number Wizard", etc.).
-- **Metadata**: Generic description "Real-time AI Teaching Platform" and default theme colors.
-- **Typecheck & Lint Issues**:
-  - `app/page.tsx`: `getRecentSessions({ limit: 10 })` passed object instead of number.
-  - `components/CompanionForm.tsx`: React Hook Form with Zod 4 type discrepancy on coerced number.
-  - `lib/utils.ts`: `clientMessages` and `serverMessages` typed as `never[]`.
-  - Unused imports in multiple files.
+4. **`user_settings`**:
+   - `user_id` (text, PK)
+   - `weekly_goal_minutes` (integer, default 60)
+   - `timezone` (text, default 'UTC')
+   - `updated_at` (timestamptz)
+5. **`voice_usage`**:
+   - `id` (uuid, PK)
+   - `user_id` (text, Clerk `userId`)
+   - `session_id` (uuid, FK → `session_history.id` nullable)
+   - `seconds` (integer)
+   - `created_at` (timestamptz)
 
 ---
 
@@ -128,19 +109,15 @@ Enforced in `lib/actions/companion.actions.ts` via `newCompanionPermissions()`:
   - `lib/actions/dashboard.actions.ts`: Server-side aggregation queries for total minutes, weekly sessions, streaks, subject breakdown, and 14-day activity trend; Zod-validated goal updates.
   - `components/dashboard/`: Recharts-powered `SubjectChart` and `ActivityChart` dynamically imported (`ssr: false`), `GoalProgressRing`, `GoalForm`, and `TimezoneSync`.
   - `app/dashboard/page.tsx`: Server-rendered `/dashboard` route with auth protection and private metadata (`noindex`).
-  - `components/NavItems.tsx`: Added Dashboard navigation link.
-- [x] **Phase 4: Feature 2 - AI Session Recap + Quiz** (Complete)
-  - `@google/genai` SDK installed for Gemini Flash integration.
-  - `supabase/migrations/002_session_recaps.sql`: `session_recaps` table with JSONB columns for `key_learnings` and `quiz`, RLS policies, and performance indexes.
-  - `lib/actions/recap.actions.ts`: `generateSessionRecap` (Gemini Flash call → Zod validation → Supabase insert), `getSessionRecap`, `getUserRecaps` server actions. Graceful null-return on failure so session always saves.
-  - `types/index.d.ts`: Added `QuizQuestion` and `SessionRecap` global interfaces.
-  - `components/CompanionComponents.tsx`: After `call-end`, transcript snapshot passed to `generateSessionRecap` as a non-blocking background promise. `recapId` state drives a "View Recap & Quiz →" button that appears on session completion.
-  - `components/session/RecapCard.tsx`: Displays AI summary and 3 numbered key learnings, color-coded to session subject.
-  - `components/session/QuizCard.tsx`: Interactive MCQ quiz — pick answer, click Check, reveal colour-coded correct/wrong with explanation. Final score banner after all questions answered.
-  - `app/sessions/[id]/page.tsx`: Server-rendered `/sessions/[id]` review page — auth guard, Supabase fetch, renders RecapCard + QuizCard.
-- [x] **Phase 5: Tests, CI & Code Hygiene** (Complete: Vitest unit tests for compute-quota and compute-streak passing 21/21, GitHub Actions CI workflow with 3-job pipeline, vitest.config.ts with alias and PostCSS bypass, and safe .env.example template)
-- [x] **Phase 6: Metadata, SEO & Performance** (Complete: next/font Bricolage Grotesque, dynamic ImageResponse OpenGraph social cards in app/opengraph-image.tsx, app/robots.ts for crawler governance, app/sitemap.ts for route indexing, layout metadata with keywords/OpenGraph/Twitter, and 100% clean production build audit across all 13 routes)
-- [x] **Phase 7: Documentation & Final Report** (Complete: production-ready README.md with badges, tech stack breakdown, and setup steps; docs/HOW_IT_WORKS.md with architecture deep-dives across WebRTC, quota math, Gemini JSON validation, and streak boundary algorithms)
+  - `components/Navbar.tsx`: Added Dashboard navigation link.
+- [x] **Phase 4: AI Session Recap + Quiz — REMOVED** (Decided to remove rather than maintain unreliable feature)
+  - After extensive attempts with multiple Gemini model fallbacks (`gemini-2.5-flash`, `gemini-2.0-flash`, `gemini-1.5-flash`, `gemini-flash`), all models consistently returned 404 errors (models not found on v1beta API).
+  - Removed `@google/genai` dependency, `lib/actions/recap.actions.ts`, `components/session/RecapCard.tsx`, `components/session/QuizCard.tsx`, `app/sessions/[id]/page.tsx`, `supabase/migrations/002_session_recaps.sql`, `QuizQuestion`/`SessionRecap` types.
+  - `CompanionComponents.tsx` now shows a simple "Session Complete" banner with link to `/my-journey` instead of recap generation UI.
+  - Landing page updated to reference "Learning Analytics" instead of "AI Recaps & Quizzes".
+- [x] **Phase 5: Tests, CI & Code Hygiene** (Complete: Vitest unit tests for compute-quota and compute-streak passing 21/21, GitHub Actions CI workflow with 3-job pipeline, vitest.config.ts with alias and PostCSS bypass, safe .env.example template)
+- [x] **Phase 6: Metadata, SEO & Performance** (Complete: next/font Bricolage Grotesque, dynamic ImageResponse OpenGraph social cards in app/opengraph-image.tsx, app/robots.ts for crawler governance, app/sitemap.ts for route indexing, layout metadata with keywords/OpenGraph/Twitter, 100% clean production build audit across all 11 routes)
+- [x] **Phase 7: Documentation & Final Report** (Complete: production-ready README.md with badges, tech stack breakdown, and setup steps; docs/HOW_IT_WORKS.md with architecture deep-dives across WebRTC, quota math, streak boundary algorithms)
 - [x] **Phase 8: Production Cleanup & Landing Page Integration** (Complete)
   - **Landing Page Clerk Integration:**
     - Removed double navbar issue: deleted redundant `LandingNavbar.tsx`, now using single global `NavBar` with conditional nav items
@@ -164,12 +141,97 @@ Enforced in `lib/actions/companion.actions.ts` via `newCompanionPermissions()`:
   - **Code Quality:**
     - ✅ ESLint: No warnings or errors (removed unused imports)
     - ✅ Vitest: 21/21 tests passing (compute-quota, compute-streak)
-    - ✅ Production build: Successful compile in 2.8min, all 13 routes generated
-    - ✅ Bundle size: Homepage 165 kB (minimal, optimal)
+    - ✅ Production build: Successful compile in 2.8min, all 11 routes generated
+    - ✅ Bundle size: Homepage 160 kB (minimal, optimal)
   - **Commits This Session:**
     - `7a01126`: Remove double navbar, integrate real Clerk auth, fix companion creation permissions
     - `99520c4`: Remove hardcoded fake voice demo modal
     - `d0b0ea3`: Simplify hero section UI to reduce visual clutter
     - `84b1c39`: Remove unused import from HeroSection
-  - **Status:** Ready for GitHub push and production deployment
-
+  - **Status:** Complete
+- [x] **Phase 9: Pro Plan Entitlements, Vapi/Daily Engine Upgrade, Voice FK Fix & Tutors Library Modernization** (Complete)
+  - **Clerk Pro Plan & Entitlement Fix (`lib/auth-plan.ts`):**
+    - Diagnosed why users on the "Pro Companion" plan were blocked from creating companions and restricted to a 15-minute quota. Clerk Billing slugs for "Pro Companion" are `pro_companion`, `pro-companion`, etc., causing exact-match `has({ plan: 'pro' })` to evaluate to `false`.
+    - Created `lib/auth-plan.ts` with `isUserProPlan()` checking 13+ plan slugs, Clerk feature flags (`unlimited_companions`), raw JWT session claims (`pla` and `fea`), and user metadata fallbacks.
+    - Wired `isUserProPlan()` into `newCompanionPermissions()` (companion creation) and `getUserPlan()` (voice usage quota).
+  - **WebRTC Engine & Daily.js Sunset Upgrade:**
+    - Diagnosed WebRTC disconnection error: `daily-js version 0.80.0 is no longer supported` resulting in `Meeting ended due to ejection` and `Vapi Error: {}`.
+    - Upgraded `@vapi-ai/web` to `^3.1.0` and `@daily-co/daily-js` to `^0.95.0` with npm package overrides.
+  - **Voice Usage Foreign-Key Constraint Fix:**
+    - Diagnosed Postgres error `23503: insert or update on table "voice_usage" violates foreign key constraint "voice_usage_session_id_fkey"`.
+    - Updated `addToSessionHistory()` to return the inserted record using `.select()`.
+    - In `CompanionComponents.tsx`, ensured `addToSessionHistory` executes first and passes the valid `sessionHistoryRecord.id` to `recordVoiceUsage()`.
+    - Added retry fallback in `lib/actions/voice.actions.ts` to retry insertion with `session_id: null` if a foreign-key mismatch ever occurs.
+  - **CompanionForm Client Navigation Fix:**
+    - Replaced server `redirect()` with Next.js client router `useRouter().push()`, eliminating Next.js redirect runtime exceptions.
+    - Added form submission loading indicators, error banner displays, and a 30-minute default duration.
+  - **Tutors Library Modernization (`/companions`):**
+    - Completely redesigned `app/companions/page.tsx` with "AI TUTORS DIRECTORY" eyebrow tag, clean responsive 3-column layout, empty states, and "Create Companion" action.
+    - Rewrote `components/CompanionCard.tsx` with modern white cards, subtle subject accent borders, avatar icons, uppercase category pill badges, optimistic bookmarking toggle with rollback, and "Launch Lesson" dark-to-vermilion buttons.
+    - Redesigned `components/SearchInput.tsx` (rounded-xl, brand focus ring, clear button) and `components/SubjectFilter.tsx` (clean dropdown, default "all").
+    - Added `getUserBookmarkIds()` server helper in `lib/actions/companion.actions.ts` for fast server-side bookmark lookup.
+  - **Code Quality & Verification:**
+    - ✅ `npx tsc --noEmit`: 0 errors (100% clean).
+    - ✅ `npm run lint`: 0 errors, 0 warnings.
+    - ✅ `npm test`: 21/21 Vitest tests passing.
+  - **Master Tracker:**
+    - Created `TRACKER.md` as the permanent chronological master audit trail and defect register for all changes across the project.
+  - **Status:** Complete and verified; ready for production use.
+- [x] **Phase 10: Loose Ends Cleanup & Final Polish** (Complete)
+  - **Removed AI Recap Feature Entirely:** See Phase 4 above — all Gemini-related code, dependencies, types, and UI removed.
+  - **Fixed Missing `alt` Attributes:** All `<Image>` components across the codebase now have proper `alt` props (CompanionCard, CompanionComponents, CompanionList, etc.). Resolved Next.js "Image is missing required 'alt' property" warnings.
+  - **Font System Cleanup:** Fixed `app/globals.css` font definitions — replaced undefined `var(--font-geist-sans)`/`var(--font-geist-mono)` with explicit `"Bricolage Grotesque", sans-serif` and system monospace stack. The `Bricolage_Grotesque` font is now correctly loaded via `next/font` in `app/layout.tsx` and used consistently.
+  - **Removed Dead Code & Assets:**
+    - Deleted `components/CTA.tsx` (unused)
+    - Deleted `public/images/logo.svg` (1.04 MB tutorial logo)
+    - Deleted `public/readme/` directory (JS Mastery tutorial promotional assets: `jsmpro.jpg`, `videokit.jpg`, `hero.png`, `thumbnail.png`)
+    - Deleted `app/api/sentry-example-api/` (example route)
+    - Deleted `app/sentry-example-page/` (example page)
+    - Removed `recentSessions` mock array from `constants/index.ts`
+    - Removed commented-out Appwrite `Models.Document` types from `types/index.d.ts`
+    - Cleaned `types/index.d.ts` to only contain active project types
+  - **Dependencies Cleanup:** Removed `@google/genai` from `package.json`
+  - **Docs & References Updated:**
+    - Updated `README.md`: Removed "AI Session Recaps" feature, Gemini from tech stack, `GEMINI_API_KEY` from env vars, session_recaps migration from setup, `lib/actions` Gemini reference, session route from structure, `components/session/` from components
+    - Updated `docs/HOW_IT_WORKS.md`: Removed Section 3 (AI Recap), updated Session Lifecycle to show session record → usage flow without recap
+    - Updated `app/opengraph-image.tsx`: Removed "🧠 AI Recaps & Quizzes" badge
+    - Updated `components/landing/data.ts`: Changed feature 8 from "Recaps & Analytics / AI Quizzes & Streaks" to "Learning Analytics / Dashboard & Streaks", updated Step 3 from "Review AI Recap & Practice Quiz" to "Track Progress on Dashboard"
+    - Updated `app/layout.tsx`: Removed "Gemini Flash" from metadata keywords
+    - Updated `app/robots.ts`: Removed `/sessions/` from disallow list
+  - **ESLint Clean:** Fixed unused variable `role` in `CompanionComponents.tsx:125`
+  - **Verification — All Quality Gates Pass:**
+    - ✅ `npx tsc --noEmit`: 0 errors (100% clean)
+    - ✅ `npm run lint`: 0 errors, 0 warnings
+    - ✅ `npm test`: 21/21 Vitest tests passing
+    - ✅ `npm run build`: Successful production build, all 11 routes generated
+  - **Status:** Complete — project is production-ready with all loose ends resolved
+- [x] **Phase 11: Enterprise Security Audit, Clerk Google OAuth Hardening, and Supabase RLS Fix** (Complete)
+  - **Server Actions Authorization & Quota Hardening:**
+    - Added mandatory Clerk user authentication checks (`auth().userId`) to `createCompanion`, `addToSessionHistory`, and bookmark handlers in `lib/actions/companion.actions.ts`.
+    - Added server-side Zod validation (`createCompanionSchema`) to reject malformed inputs before database operations.
+    - Added server-side companion creation quota enforcement (`newCompanionPermissions`).
+    - Added PostgREST query input sanitization on `getAllCompanions` to strip delimiter characters (`[,()]`) preventing filter injection.
+  - **Default-Deny Middleware Routing:**
+    - Upgraded `middleware.ts` to use Clerk `createRouteMatcher` with a strict public allowlist (`/`, `/sign-in(.*)`, `/sign-up(.*)`, `/companions`, `/subscription`).
+    - Enforced `await auth.protect()` across all other application routes.
+  - **Fail-Fast Environment Variable Validation:**
+    - Authored `lib/env.ts` checking required environment variables at server initialization, failing fast with diagnostic errors.
+  - **Next.js & Sentry Modernization:**
+    - Re-enabled strict type-checking and linting in `next.config.ts`.
+    - Migrated Sentry config to `@sentry/nextjs/config` and enabled source map deletion after build (`deleteSourcemapsAfterUpload: true`).
+  - **Supply Chain Security & CVE Remediation:**
+    - Replaced `@jsmastery/utils` with native `URLSearchParams` helpers in `lib/utils.ts`.
+    - Patched Clerk SDK middleware/authorization bypass vulnerabilities via `npm audit fix`.
+  - **PostgreSQL RLS & UUID Syntax Resolution:**
+    - Resolved `invalid input syntax for type uuid: "user_..."` by diagnosing that Supabase's internal `auth.uid()` function casts JWT `sub` to `::uuid`.
+    - Authored `supabase/migrations/20261124190000_core_tables_rls.sql` replacing all `auth.uid()` calls with `(auth.jwt() ->> 'sub') = user_id`, altering `user_id` and `author` columns to `TEXT`, dropping legacy foreign-key constraints to `auth.users`, and reloading PostgREST schema cache.
+  - **Defensive Profile Page Error Handling:**
+    - Wrapped `getUserSessions`, `getUserCompanions`, and `getBookmarkedCompanions` in try/catch blocks with clean logging and graceful empty-state fallbacks.
+  - **Assets Cleanup:**
+    - Removed leftover tutorial folder `public/readme/` and heavy unused `public/images/logo.svg` (1.04 MB) and `public/images/cta.svg`.
+  - **Verification:**
+    - ✅ `npx tsc --noEmit`: 0 errors.
+    - ✅ `npm run lint`: 0 errors, 0 warnings.
+    - ✅ `npm test`: 21 / 21 tests passing.
+    - ✅ `npm run build`: Successful production build, all 11 routes generated.
+  - **Status:** Complete — 100% verified, hardened, and ready for deployment.
