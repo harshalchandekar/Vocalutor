@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="200" height="48" viewBox="0 0 200 48" role="img" aria-labelledby="title desc">
-<title id="title">Vocalutor — Speak, Learn, Grow</title><desc id="desc">Microphone and headset above an open book with the Vocalutor wordmark.</desc>
+<title id="title">Vocalutor — Speak, Learn, Grow</title><desc id="desc">Vocalutor microphone and headset logo with white and vermilion lettering.</desc>
 <g transform="translate(1 1)" stroke-linecap="round" stroke-linejoin="round">
 <path d="M6 19.5a15.5 15.5 0 0 1 31 0" fill="none" stroke="#0F0F10" stroke-width="3.4"/>
 <rect x="3.2" y="18" width="5.2" height="10.5" rx="2.4" fill="#0F0F10"/><rect x="34.6" y="18" width="5.2" height="10.5" rx="2.4" fill="#0F0F10"/>
@@ -10,6 +10,6 @@
 <path d="M19.2 35.3c-4.5-4.3-9.4-5.1-15.2-4.2 2.4 4.1 6 6.2 9.7 6.8 2.2.4 4 1.4 5.5 3.2Z" fill="#FE5933"/>
 <path d="M22.8 35.3c4.5-4.3 9.4-5.1 15.2-4.2-2.4 4.1-6 6.2-9.7 6.8-2.2.4-4 1.4-5.5 3.2Z" fill="#FE5933"/>
 </g>
-<text x="48" y="26.5" font-family="Inter,Arial,sans-serif" font-size="20.5" font-weight="750" letter-spacing="-0.8"><tspan fill="#0F0F10">Voca</tspan><tspan fill="#FE5933">lutor</tspan></text>
-<text x="49" y="39.5" font-family="Inter,Arial,sans-serif" font-size="6.2" font-weight="500" letter-spacing="1.45" fill="#52525B">SPEAK <tspan fill="#FE5933">•</tspan> LEARN <tspan fill="#FE5933">•</tspan> GROW</text>
+<text x="48" y="26.5" font-family="Inter,Arial,sans-serif" font-size="20.5" font-weight="750" letter-spacing="-0.8"><tspan fill="#FFFFFF">Voca</tspan><tspan fill="#FE5933">lutor</tspan></text>
+<text x="49" y="39.5" font-family="Inter,Arial,sans-serif" font-size="6.2" font-weight="500" letter-spacing="1.45" fill="#FFFFFF">SPEAK <tspan fill="#FE5933">•</tspan> LEARN <tspan fill="#FE5933">•</tspan> GROW</text>
 </svg>
