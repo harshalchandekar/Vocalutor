@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/vocalutor-primary.svg" alt="Vocalutor Logo" width="280" />
+  <img src="public/vocalutor-readme.png" alt="Vocalutor Logo" width="280" />
 </p>
 
 <h1 align="center">Vocalutor — Voice-Interactive AI Tutoring SaaS</h1>
