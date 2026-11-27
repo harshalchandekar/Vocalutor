@@ -9,7 +9,7 @@ import Logo from "./Logo";
 import UsageMeter from "./UsageMeter";
 import { cn } from "@/lib/utils";
 
-export const NavBar = () => {
+export function NavBar() {
   const pathname = usePathname();
   const isHome = pathname === "/";
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -237,6 +237,4 @@ export const NavBar = () => {
       )}
     </header>
   );
-};
-
-export default NavBar;
+}
